@@ -42,6 +42,15 @@ export const storage = {
           return item
         })()),
 
+  updateContact: (id, patch) =>
+    isElectron
+      ? window.electronAPI.updateContact(id, patch)
+      : Promise.resolve((() => {
+          const updated = lsGet('contacts', []).map(c => c.id === id ? { ...c, ...patch } : c)
+          lsSet('contacts', updated)
+          return updated
+        })()),
+
   deleteContact: (id) =>
     isElectron
       ? window.electronAPI.deleteContact(id)

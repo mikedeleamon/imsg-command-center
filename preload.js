@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getContacts:    ()         => ipcRenderer.invoke('contacts:get'),
   saveContacts:   (contacts) => ipcRenderer.invoke('contacts:save', contacts),
   addContact:     (contact)  => ipcRenderer.invoke('contacts:add', contact),
+  updateContact:  (id, patch)=> ipcRenderer.invoke('contacts:update', id, patch),
   deleteContact:  (id)       => ipcRenderer.invoke('contacts:delete', id),
 
   // ── Scheduled Messages ───────────────────────────────────────────────────────

@@ -213,6 +213,12 @@ ipcMain.handle('contacts:add',    async (_, contact) => {
   await writeJSON('contacts.json', list)
   return item
 })
+ipcMain.handle('contacts:update', async (_, id, patch) => {
+  const list    = await readJSON('contacts.json', [])
+  const updated = list.map(c => c.id === id ? { ...c, ...patch } : c)
+  await writeJSON('contacts.json', updated)
+  return updated
+})
 ipcMain.handle('contacts:delete', async (_, id) => {
   const updated = (await readJSON('contacts.json', [])).filter(c => c.id !== id)
   await writeJSON('contacts.json', updated)

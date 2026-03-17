@@ -3,7 +3,26 @@ import { useApp } from '../context/AppContext'
 import AddContactModal from '../components/AddContactModal'
 import { initials } from '../utils/helpers'
 
-function ContactCard({ contact, onDelete, onMessage }) {
+function Avatar({ contact, size = 52 }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%',
+      background: contact.photo ? 'transparent' : contact.color + '22',
+      color: contact.color, overflow: 'hidden',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.34, fontWeight: 700,
+      flexShrink: 0,
+    }}>
+      {contact.photo
+        ? <img src={contact.photo} alt={contact.name}
+            style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+        : initials(contact.name)
+      }
+    </div>
+  )
+}
+
+function ContactCard({ contact, onEdit, onDelete, onMessage }) {
   const [hov, setHov] = useState(false)
   return (
     <div
@@ -11,18 +30,13 @@ function ContactCard({ contact, onDelete, onMessage }) {
         background: hov ? 'var(--surface2)' : 'var(--surface)',
         border: '1px solid var(--border2)',
         borderRadius: 'var(--radius)', padding: 16,
-        textAlign:'center', transition:'all .15s', cursor:'default',
+        textAlign:'center', transition:'all .15s',
       }}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
-      <div style={{
-        width:52, height:52, borderRadius:'50%',
-        background: contact.color + '22', color: contact.color,
-        display:'flex', alignItems:'center', justifyContent:'center',
-        fontSize:18, fontWeight:700, margin:'0 auto 10px',
-      }}>
-        {initials(contact.name)}
+      <div style={{ display:'flex', justifyContent:'center', marginBottom:10 }}>
+        <Avatar contact={contact} size={52} />
       </div>
       <div style={{ fontSize:13, fontWeight:500, color:'var(--text)', marginBottom:3 }}>
         {contact.name}
@@ -31,9 +45,12 @@ function ContactCard({ contact, onDelete, onMessage }) {
                     whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
         {contact.handle}
       </div>
-      <div style={{ display:'flex', gap:6, justifyContent:'center' }}>
+      <div style={{ display:'flex', gap:5, justifyContent:'center', flexWrap:'wrap' }}>
         <button className="btn btn-secondary btn-sm" onClick={() => onMessage(contact)}>
           Message
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={() => onEdit(contact)}>
+          Edit
         </button>
         <button className="btn btn-danger btn-sm" onClick={() => onDelete(contact.id)}>
           ✕
@@ -44,18 +61,26 @@ function ContactCard({ contact, onDelete, onMessage }) {
 }
 
 export default function Contacts() {
-  const { contacts, addContact, deleteContact, navigate } = useApp()
-  const [showModal, setShowModal] = useState(false)
-  const [search, setSearch]       = useState('')
+  const { contacts, addContact, updateContact, deleteContact, navigate } = useApp()
+  const [modalContact, setModalContact] = useState(null)  // null=closed, {}=add, contact=edit
+  const [search, setSearch] = useState('')
 
   const filtered = contacts.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.handle.toLowerCase().includes(search.toLowerCase())
   )
 
+  const openAdd  = ()        => setModalContact({})
+  const openEdit = (contact) => setModalContact(contact)
+  const closeModal = ()      => setModalContact(null)
+
   const handleSave = async (data) => {
-    await addContact(data)
-    setShowModal(false)
+    if (modalContact?.id) {
+      await updateContact(modalContact.id, data)
+    } else {
+      await addContact(data)
+    }
+    closeModal()
   }
 
   const handleMessage = (contact) => {
@@ -71,9 +96,7 @@ export default function Contacts() {
             {contacts.length} saved contact{contacts.length !== 1 ? 's' : ''}
           </div>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          + Add Contact
-        </button>
+        <button className="btn btn-primary" onClick={openAdd}>+ Add Contact</button>
       </div>
 
       {contacts.length > 4 && (
@@ -92,7 +115,7 @@ export default function Contacts() {
         <div style={{ textAlign:'center', padding:'48px 24px', color:'var(--text3)', fontSize:13, lineHeight:2 }}>
           <div style={{ fontSize:40, marginBottom:12 }}>👥</div>
           No contacts yet.<br/>
-          <span style={{ color:'var(--accent)', cursor:'pointer' }} onClick={() => setShowModal(true)}>
+          <span style={{ color:'var(--accent)', cursor:'pointer' }} onClick={openAdd}>
             Add your first contact →
           </span>
         </div>
@@ -102,20 +125,19 @@ export default function Contacts() {
             <ContactCard
               key={c.id}
               contact={c}
-              onDelete={(id) => deleteContact(id)}
+              onEdit={openEdit}
+              onDelete={deleteContact}
               onMessage={handleMessage}
             />
           ))}
-          {/* Add new card */}
           <div
-            onClick={() => setShowModal(true)}
+            onClick={openAdd}
             style={{
               border:'1px dashed var(--border)', borderRadius:'var(--radius)',
               padding:16, cursor:'pointer', textAlign:'center',
               display:'flex', flexDirection:'column', alignItems:'center',
               justifyContent:'center', minHeight:148,
-              color:'var(--text3)', fontSize:12,
-              transition:'all .15s',
+              color:'var(--text3)', fontSize:12, transition:'all .15s',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.color='var(--text3)' }}
@@ -126,9 +148,10 @@ export default function Contacts() {
         </div>
       )}
 
-      {showModal && (
+      {modalContact !== null && (
         <AddContactModal
-          onClose={() => setShowModal(false)}
+          contact={modalContact?.id ? modalContact : undefined}
+          onClose={closeModal}
           onSave={handleSave}
         />
       )}

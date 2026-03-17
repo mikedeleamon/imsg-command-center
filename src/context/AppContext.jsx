@@ -17,12 +17,13 @@ export function AppProvider({ children }) {
   const [contacts,    setContacts]    = useState([])
   const [scheduled,   setScheduled]   = useState([])
   const [settings,    setSettings]    = useState(DEFAULT_SETTINGS)
-  const [activeJobs,  setActiveJobs]  = useState([])   // job IDs currently scheduled
+  const [activeJobs,  setActiveJobs]  = useState([])
+  const [failedJobs,  setFailedJobs]  = useState([])  // { id, error, time }
   const [loading,     setLoading]     = useState(true)
   const [prefill,     setPrefill]     = useState(null)
   const { toasts, toast } = useToast()
 
-  // ── Load all data on mount ─────────────────────────────────────────────────
+  // ── Load on mount ──────────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
       storage.getContacts(),
@@ -38,41 +39,36 @@ export function AppProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
-  // ── Listen for job:fired events pushed from main process ───────────────────
+  // ── Listen for job fire events ─────────────────────────────────────────────
   useEffect(() => {
     storage.onJobFired((payload) => {
       const { id, status, lastRun, error } = payload
 
       if (status === 'sent') {
-        // Update the item in local state
         setScheduled(prev => prev.map(s =>
           s.id === id
             ? { ...s, lastRun, ...(s.freq === 'once' ? { completed: true } : {}) }
             : s
         ))
-        // Remove from activeJobs if one-time
-        setScheduled(prev => {
-          const item = prev.find(s => s.id === id)
-          if (item?.freq === 'once') {
-            setActiveJobs(j => j.filter(jid => jid !== id))
-          }
-          return prev
+        setActiveJobs(prev => {
+          const item = scheduled.find(s => s.id === id)
+          return item?.freq === 'once' ? prev.filter(jid => jid !== id) : prev
         })
-        toast(`✓ Message to ${getRecipient(id)} sent successfully`, 'success')
+        toast(`Message to ${recipientForId(id)} sent ✓`, 'success')
       }
 
       if (status === 'error') {
-        toast(`✗ Failed to send to ${getRecipient(id)}: ${error}`, 'error')
+        setFailedJobs(prev => [...prev, { id, error, time: new Date().toISOString() }])
+        toast(`Failed to send to ${recipientForId(id)}: ${error}`, 'error')
       }
     })
-
     return () => storage.offJobFired()
   }, []) // eslint-disable-line
 
-  // Helper to get recipient name from id without stale closure issues
-  const getRecipient = (id) => {
-    // We read from DOM state via a ref-like pattern — toast message is best-effort
-    return 'recipient'
+  // Reads from latest scheduled ref — best effort for toast text
+  const recipientForId = (id) => {
+    const found = scheduled.find(s => s.id === id)
+    return found?.recipient ?? 'recipient'
   }
 
   // ── Contacts ───────────────────────────────────────────────────────────────
@@ -81,6 +77,12 @@ export function AppProvider({ children }) {
     setContacts(prev => [...prev, saved])
     toast(`${saved.name} added`, 'success')
     return saved
+  }, [toast])
+
+  const updateContact = useCallback(async (id, patch) => {
+    const updated = await storage.updateContact(id, patch)
+    setContacts(updated)
+    toast('Contact updated', 'success')
   }, [toast])
 
   const deleteContact = useCallback(async (id, skipConfirm = false) => {
@@ -96,7 +98,6 @@ export function AppProvider({ children }) {
   const addScheduled = useCallback(async (item) => {
     const saved = await storage.addScheduled(item)
     setScheduled(prev => [...prev, saved])
-    // Refresh active jobs list
     const jobs = await storage.getActiveJobs()
     setActiveJobs(jobs)
     toast(`Scheduled for ${saved.date} at ${saved.time}`, 'success')
@@ -106,7 +107,6 @@ export function AppProvider({ children }) {
   const updateScheduled = useCallback(async (id, patch) => {
     const updated = await storage.updateScheduled(id, patch)
     setScheduled(updated)
-    // Refresh active jobs
     const jobs = await storage.getActiveJobs()
     setActiveJobs(jobs)
   }, [])
@@ -138,9 +138,10 @@ export function AppProvider({ children }) {
   const clearPrefill = useCallback(() => setPrefill(null), [])
 
   const value = {
-    activeView, contacts, scheduled, settings, activeJobs, loading, toasts, prefill,
+    activeView, contacts, scheduled, settings, activeJobs, failedJobs,
+    loading, toasts, prefill,
     navigate, setActiveView,
-    addContact, deleteContact,
+    addContact, updateContact, deleteContact,
     addScheduled, updateScheduled, deleteScheduled,
     updateSettings,
     clearPrefill,
