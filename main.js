@@ -32,15 +32,17 @@ async function writeJSON(filename, data) {
 // ── AppleScript builder + runner ──────────────────────────────────────────────
 
 function buildAppleScript(item) {
-  const escAS = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-  const rec   = escAS(item.recipient)
-  const sends = (item.messages ?? [])
+  const escAS      = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  const rec        = escAS(item.recipient)
+  const sends      = (item.messages ?? [])
     .map(m => `send "${escAS(m)}" to targetBuddy`)
     .join('\n  ')
+  // SMS uses the SMS service type (routes via iPhone Continuity)
+  const serviceType = item.msgType === 'sms' ? 'SMS' : 'iMessage'
 
   return [
     'tell application "Messages"',
-    '  set targetService to 1st service whose service type = iMessage',
+    `  set targetService to 1st service whose service type = ${serviceType}`,
     `  set targetBuddy to buddy "${rec}" of targetService`,
     `  ${sends}`,
     'end tell',

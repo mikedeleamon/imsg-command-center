@@ -45,6 +45,33 @@ export const cronExpr = ({ freq, time, date, cNum, cUnit }) => {
   return ''
 }
 
+export const PLATFORMS = {
+  imessage: {
+    id:        'imessage',
+    label:     'iMessage',
+    icon:      '💬',
+    color:     '#0a84ff',
+    bgColor:   'rgba(10,132,255,0.15)',
+    hint:      'Requires Apple ID / iMessage account',
+  },
+  sms: {
+    id:        'sms',
+    label:     'SMS',
+    icon:      '📱',
+    color:     '#30d158',
+    bgColor:   'rgba(48,209,88,0.15)',
+    hint:      'Requires iPhone paired via Continuity (same Apple ID, same Wi-Fi)',
+  },
+  whatsapp: {
+    id:        'whatsapp',
+    label:     'WhatsApp',
+    icon:      '🟢',
+    color:     '#25d366',
+    bgColor:   'rgba(37,211,102,0.15)',
+    hint:      'Requires WhatsApp Desktop installed. Phone number must include country code (e.g. +1 555…)',
+  },
+}
+
 export const AVATAR_COLORS = [
   '#0a84ff', '#30d158', '#ff9f0a',
   '#bf5af2', '#ff453a', '#32d2ff',

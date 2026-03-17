@@ -1,16 +1,21 @@
 import { cronExpr } from './helpers'
 
 export function generateScript(item, settings = {}) {
-  const sp = (settings.scriptPath ?? '~/imsg_scripts/').replace(/\/$/, '')
-  const scriptPath = `${sp}/imsg_${item.id}.scpt`
-  const rec = String(item.recipient ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  const sp          = (settings.scriptPath ?? '~/imsg_scripts/').replace(/\/$/, '')
+  const scriptPath  = `${sp}/imsg_${item.id}.scpt`
+  const isSMS       = item.msgType === 'sms'
+  const serviceType = isSMS ? 'SMS' : 'iMessage'
+  const channelName = isSMS ? 'SMS (via iPhone Continuity)' : 'iMessage'
+  const rec         = String(item.recipient ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 
   const sends = (item.messages ?? [])
     .map(m => `  send "${String(m).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}" to targetBuddy`)
     .join('\n')
 
   const deliveryNote = settings.showDeliveryNote !== false
-    ? `-- NOTE: Messages.app must be open & signed into iMessage.\n`
+    ? isSMS
+      ? `-- NOTE: Messages.app must be open. Your iPhone must be on the same\n-- network as your Mac with Continuity enabled for SMS to work.\n`
+      : `-- NOTE: Messages.app must be open & signed into iMessage.\n`
     : ''
 
   const sleepNote = settings.showSleepNote !== false
@@ -20,6 +25,7 @@ export function generateScript(item, settings = {}) {
   const applescript = [
     `-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `-- iMessage Command Center — AppleScript`,
+    `-- Channel   : ${channelName}`,
     `-- Recipient : ${item.recipient}`,
     `-- Scheduled : ${item.date} at ${item.time}`,
     `-- Frequency : ${item.flabel}`,
@@ -27,7 +33,7 @@ export function generateScript(item, settings = {}) {
     `-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     deliveryNote,
     `tell application "Messages"`,
-    `  set targetService to 1st service whose service type = iMessage`,
+    `  set targetService to 1st service whose service type = ${serviceType}`,
     `  set targetBuddy to buddy "${rec}" of targetService`,
     sends,
     `end tell`,

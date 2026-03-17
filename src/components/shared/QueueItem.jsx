@@ -79,6 +79,15 @@ export default function QueueItem({ item }) {
               <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                 {item.recipient}
               </span>
+              {/* Channel badge */}
+              <span style={{
+                fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
+                background: item.msgType === 'sms' ? 'rgba(48,209,88,0.15)' : 'rgba(10,132,255,0.12)',
+                color:      item.msgType === 'sms' ? 'var(--green)'          : 'var(--accent)',
+                border:     `1px solid ${item.msgType === 'sms' ? 'rgba(48,209,88,0.3)' : 'rgba(10,132,255,0.25)'}`,
+              }}>
+                {item.msgType === 'sms' ? '📱 SMS' : '💬 iMessage'}
+              </span>
               {/* Frequency chip */}
               <span className={freqChipCls}>{item.flabel}</span>
               {/* Live status chip */}
