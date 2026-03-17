@@ -99,14 +99,15 @@ export default function Contacts() {
         <button className="btn btn-primary" onClick={openAdd}>+ Add Contact</button>
       </div>
 
-      {contacts.length > 4 && (
+      {/* Search — always visible once there's at least one contact */}
+      {contacts.length > 0 && (
         <div style={{ marginBottom:20 }}>
           <input
             type="text"
-            placeholder="Search contacts…"
+            placeholder="Search by name or number…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ maxWidth:280 }}
+            style={{ maxWidth:320 }}
           />
         </div>
       )}

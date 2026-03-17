@@ -14,7 +14,10 @@ export default function Queue() {
   const { scheduled, navigate } = useApp()
   const [filter, setFilter] = useState('all')
 
-  const visible = scheduled.filter(s => {
+  // Only active (non-completed) items live here
+  const active = scheduled.filter(s => !s.completed)
+
+  const visible = active.filter(s => {
     if (filter === 'all')    return true
     if (filter === 'once')   return s.freq === 'once' && !s.paused
     if (filter === 'repeat') return s.freq !== 'once' && !s.paused
@@ -24,11 +27,11 @@ export default function Queue() {
 
   return (
     <div>
-      <div className="flex-between" style={{ marginBottom: 24 }}>
+      <div className="flex-between" style={{ marginBottom:24 }}>
         <div>
           <div style={{ fontSize:26, fontWeight:600, letterSpacing:'-.03em' }}>Message Queue</div>
           <div style={{ fontSize:13, color:'var(--text3)', marginTop:3 }}>
-            {scheduled.length} message{scheduled.length !== 1 ? 's' : ''} scheduled
+            {active.length} active message{active.length !== 1 ? 's' : ''}
           </div>
         </div>
         <button className="btn btn-secondary" onClick={() => navigate('compose')}>+ New</button>
@@ -42,8 +45,8 @@ export default function Queue() {
             onClick={() => setFilter(f.key)}
           >
             {f.label}
-            {f.key === 'all' && scheduled.length > 0 &&
-              <span style={{ marginLeft:6, fontSize:10, opacity:.6 }}>({scheduled.length})</span>}
+            {f.key === 'all' && active.length > 0 &&
+              <span style={{ marginLeft:6, fontSize:10, opacity:.6 }}>({active.length})</span>}
           </button>
         ))}
       </div>
@@ -51,17 +54,16 @@ export default function Queue() {
       {visible.length === 0 ? (
         <div style={{ textAlign:'center', padding:'48px 24px', color:'var(--text3)', fontSize:13, lineHeight:2 }}>
           <div style={{ fontSize:40, marginBottom:12 }}>📭</div>
-          {scheduled.length === 0
-            ? <>No messages scheduled yet. <span style={{ color:'var(--accent)', cursor:'pointer' }} onClick={() => navigate('compose')}>Compose one →</span></>
+          {active.length === 0
+            ? <>No active messages. <span style={{ color:'var(--accent)', cursor:'pointer' }} onClick={() => navigate('compose')}>Compose one →</span></>
             : `No ${filter} messages.`}
         </div>
       ) : (
         visible.map(item => <QueueItem key={item.id} item={item} />)
       )}
 
-      {/* System cron manager — always visible at the bottom */}
-      <div style={{ marginTop: 28 }}>
-        <div className="section-label" style={{ marginBottom: 12 }}>System Cron Jobs</div>
+      <div style={{ marginTop:28 }}>
+        <div className="section-label" style={{ marginBottom:12 }}>System Cron Jobs</div>
         <CronManager />
       </div>
     </div>

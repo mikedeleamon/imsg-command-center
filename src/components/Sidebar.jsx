@@ -4,6 +4,7 @@ const NAV = [
   { id: 'dashboard', icon: '💬', label: 'Dashboard',  color: 'rgba(10,132,255,.15)' },
   { id: 'compose',   icon: '✏️',  label: 'Compose',   color: 'rgba(48,209,88,.15)' },
   { id: 'queue',     icon: '📋', label: 'Queue',      color: 'rgba(255,159,10,.15)', badge: true },
+  { id: 'history',   icon: '📜', label: 'History',    color: 'rgba(48,209,88,.15)',  completedBadge: true },
 ]
 
 const MANAGE = [
@@ -73,7 +74,7 @@ export default function Sidebar() {
           key={item.id}
           item={item}
           active={activeView === item.id}
-          badge={item.badge ? scheduled.length : 0}
+          badge={item.badge ? scheduled.filter(s=>!s.completed).length : item.completedBadge ? scheduled.filter(s=>s.completed).length : 0}
         />
       ))}
 

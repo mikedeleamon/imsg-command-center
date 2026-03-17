@@ -5,10 +5,11 @@ import ToastList from './components/Toast'
 import Dashboard from './views/Dashboard'
 import Compose   from './views/Compose'
 import Queue     from './views/Queue'
+import History   from './views/History'
 import Contacts  from './views/Contacts'
 import Settings  from './views/Settings'
 
-const VIEWS = { dashboard: Dashboard, compose: Compose, queue: Queue, contacts: Contacts, settings: Settings }
+const VIEWS = { dashboard: Dashboard, compose: Compose, queue: Queue, history: History, contacts: Contacts, settings: Settings }
 
 function AppShell() {
   const { activeView, toasts, loading } = useApp()

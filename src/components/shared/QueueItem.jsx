@@ -4,14 +4,19 @@ import ScriptPanel from './ScriptPanel'
 import EditScheduledModal from '../EditScheduledModal'
 import { initials } from '../../utils/helpers'
 
-function StatusDot({ active, completed, paused }) {
-  if (completed) return (
-    <span style={{
-      fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:20,
-      background:'rgba(48,209,88,0.15)', color:'var(--green)',
-      border:'1px solid rgba(48,209,88,0.3)',
-    }}>✓ Sent</span>
-  )
+// Normalise a phone string to digits only for fuzzy matching
+const digits = (s) => String(s ?? '').replace(/\D/g, '')
+
+// Find a contact whose handle matches the recipient (exact or digit-normalised)
+function resolveContact(contacts, recipient) {
+  if (!recipient) return null
+  return contacts.find(c =>
+    c.handle === recipient ||
+    (digits(c.handle) && digits(c.handle) === digits(recipient))
+  ) ?? null
+}
+
+function StatusDot({ active, paused }) {
   if (paused) return <span className="chip chip-paused">⏸ Paused</span>
   if (active) return (
     <span style={{
@@ -30,15 +35,35 @@ function StatusDot({ active, completed, paused }) {
   return <span className="chip chip-once">Pending</span>
 }
 
+function ContactAvatar({ contact, item, size = 40 }) {
+  const color = contact?.color ?? item.color ?? '#0a84ff'
+  const name  = contact?.name  ?? item.recipient
+  return (
+    <div style={{
+      width:size, height:size, borderRadius:'50%', flexShrink:0,
+      background: color + '22', color, overflow:'hidden',
+      display:'flex', alignItems:'center', justifyContent:'center',
+      fontSize:size * 0.35, fontWeight:700,
+    }}>
+      {contact?.photo
+        ? <img src={contact.photo} alt={name}
+            style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+        : initials(name)
+      }
+    </div>
+  )
+}
+
 export default function QueueItem({ item }) {
-  const { updateScheduled, deleteScheduled, activeJobs } = useApp()
+  const { updateScheduled, deleteScheduled, activeJobs, contacts } = useApp()
   const [showEdit, setShowEdit] = useState(false)
 
+  const contact     = resolveContact(contacts, item.recipient)
+  const displayName = contact?.name ?? item.recipient
   const isActive    = activeJobs.includes(item.id)
   const preview     = item.messages?.[0] ?? ''
-  const short       = preview.length > 58 ? preview.slice(0, 58) + '…' : preview
+  const short       = preview.length > 58 ? preview.slice(0,58)+'…' : preview
   const extra       = (item.messages?.length ?? 1) - 1
-  const color       = item.color ?? '#0a84ff'
   const freqChipCls = item.freq === 'once' ? 'chip chip-once' : 'chip chip-repeat'
 
   const handleEditSave = async (patch) => {
@@ -48,32 +73,28 @@ export default function QueueItem({ item }) {
 
   return (
     <>
-      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }`}</style>
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style>
 
       <div
         style={{
           background:'var(--surface)', border:'1px solid var(--border2)',
           borderRadius:'var(--radius)', marginBottom:10, overflow:'hidden',
-          transition:'border-color .15s', opacity: item.completed ? 0.65 : 1,
+          transition:'border-color .15s',
         }}
         onMouseEnter={e => e.currentTarget.style.borderColor='var(--border)'}
         onMouseLeave={e => e.currentTarget.style.borderColor='var(--border2)'}
       >
         <div style={{ padding:'14px 16px', display:'flex', alignItems:'flex-start', gap:14 }}>
-          {/* Avatar */}
-          <div style={{
-            width:40, height:40, borderRadius:'50%', flexShrink:0,
-            background: color + '22', color,
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:14, fontWeight:700,
-          }}>
-            {initials(item.recipient)}
-          </div>
+          <ContactAvatar contact={contact} item={item} />
 
-          {/* Body */}
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5, flexWrap:'wrap' }}>
-              <span style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{item.recipient}</span>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4, flexWrap:'wrap' }}>
+              {/* Name — contact name if matched, otherwise raw recipient */}
+              <span style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{displayName}</span>
+              {/* Show raw number beneath name if we resolved a contact */}
+              {contact && displayName !== item.recipient && (
+                <span style={{ fontSize:11, color:'var(--text3)' }}>{item.recipient}</span>
+              )}
               {/* Channel */}
               <span style={{
                 fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:20,
@@ -84,7 +105,7 @@ export default function QueueItem({ item }) {
                 {item.msgType==='sms' ? '📱 SMS' : '💬 iMessage'}
               </span>
               <span className={freqChipCls}>{item.flabel}</span>
-              <StatusDot active={isActive} completed={item.completed} paused={item.paused} />
+              <StatusDot active={isActive} paused={item.paused} />
             </div>
 
             <div style={{
@@ -105,23 +126,17 @@ export default function QueueItem({ item }) {
             </div>
           </div>
 
-          {/* Actions */}
           <div style={{ display:'flex', gap:6, flexShrink:0, flexWrap:'wrap', justifyContent:'flex-end' }}>
-            {!item.completed && (
-              <>
-                <button className="btn btn-ghost btn-sm" onClick={() => setShowEdit(true)}>Edit</button>
-                <button className="btn btn-ghost btn-sm"
-                  onClick={() => updateScheduled(item.id, { paused: !item.paused })}>
-                  {item.paused ? 'Resume' : 'Pause'}
-                </button>
-              </>
-            )}
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowEdit(true)}>Edit</button>
+            <button className="btn btn-ghost btn-sm"
+              onClick={() => updateScheduled(item.id, { paused: !item.paused })}>
+              {item.paused ? 'Resume' : 'Pause'}
+            </button>
             <button className="btn btn-danger btn-sm" onClick={() => deleteScheduled(item.id)}>Delete</button>
           </div>
         </div>
 
-        {/* App-closed warning */}
-        {isActive && !item.completed && (
+        {isActive && (
           <div style={{
             margin:'0 16px 10px', padding:'8px 12px',
             background:'rgba(255,214,10,0.08)', border:'1px solid rgba(255,214,10,0.2)',
@@ -131,7 +146,6 @@ export default function QueueItem({ item }) {
           </div>
         )}
 
-        {/* Script */}
         <div style={{ padding:'0 16px 14px' }}>
           <ScriptPanel item={item} />
         </div>
