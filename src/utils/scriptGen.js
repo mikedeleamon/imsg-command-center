@@ -6,11 +6,23 @@ export function generateScript(item, settings = {}) {
   const isSMS       = item.msgType === 'sms'
   const serviceType = isSMS ? 'SMS' : 'iMessage'
   const channelName = isSMS ? 'SMS (via iPhone Continuity)' : 'iMessage'
-  const rec         = String(item.recipient ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 
-  const sends = (item.messages ?? [])
-    .map(m => `  send "${String(m).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}" to targetBuddy`)
-    .join('\n')
+  // Support both single recipient (legacy) and recipients array
+  const allRecipients = item.recipients?.length
+    ? item.recipients
+    : [item.recipient].filter(Boolean)
+
+  const escAS = (s) => String(s ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+
+  const sends = allRecipients.flatMap(rec =>
+    (item.messages ?? []).map(m =>
+      `  set targetBuddy to buddy "${escAS(rec)}" of targetService\n  send "${escAS(m)}" to targetBuddy`
+    )
+  ).join('\n')
+
+  const recipientLabel = allRecipients.length === 1
+    ? allRecipients[0]
+    : `${allRecipients[0]} (+${allRecipients.length - 1} more)`
 
   const deliveryNote = settings.showDeliveryNote !== false
     ? isSMS
@@ -25,16 +37,15 @@ export function generateScript(item, settings = {}) {
   const applescript = [
     `-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `-- iMessage Command Center — AppleScript`,
-    `-- Channel   : ${channelName}`,
-    `-- Recipient : ${item.recipient}`,
-    `-- Scheduled : ${item.date} at ${item.time}`,
-    `-- Frequency : ${item.flabel}`,
-    `-- Script ID : ${item.id}`,
+    `-- Channel    : ${channelName}`,
+    `-- Recipients : ${allRecipients.join(', ')}`,
+    `-- Scheduled  : ${item.date} at ${item.time}`,
+    `-- Frequency  : ${item.flabel}`,
+    `-- Script ID  : ${item.id}`,
     `-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     deliveryNote,
     `tell application "Messages"`,
     `  set targetService to 1st service whose service type = ${serviceType}`,
-    `  set targetBuddy to buddy "${rec}" of targetService`,
     sends,
     `end tell`,
   ].join('\n')

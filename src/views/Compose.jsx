@@ -814,7 +814,7 @@ function Preview({
                     border: '1px solid rgba(10,132,255,0.2)',
                     fontSize: 11, color: 'var(--accent)', lineHeight: 1.6,
                 }}>
-                    📤 Creates {recipients.length} separate scheduled messages — one per recipient.
+                    📤 Message will be sent to all {recipients.length} recipients together.
                 </div>
             )}
             {isSMS && (
@@ -922,23 +922,20 @@ export default function Compose() {
             return showError('Write at least one message.');
         if (!date || !time) return showError('Set a date and time.');
 
-        await Promise.all(
-            recipients.map((handle) =>
-                addScheduled({
-                    recipient: handle,
-                    msgType,
-                    messages:  messages.filter(Boolean),
-                    date,
-                    time,
-                    freq,
-                    cNum,
-                    cUnit,
-                    flabel: freqLabel(freq, cNum, cUnit),
-                    paused: false,
-                    color:  colorForName(handle),
-                }),
-            ),
-        );
+        await addScheduled({
+            recipient:  recipients[0],   // kept for backward compat with single-recipient items
+            recipients: [...recipients], // full list — used for multi-recipient display & script
+            msgType,
+            messages: messages.filter(Boolean),
+            date,
+            time,
+            freq,
+            cNum,
+            cUnit,
+            flabel: freqLabel(freq, cNum, cUnit),
+            paused: false,
+            color:  colorForName(recipients[0]),
+        });
 
         setRecipients([]);
         setMessages(['']);
