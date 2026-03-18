@@ -896,7 +896,13 @@ export default function Compose() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        if (prefill?.recipient) {
+        if (prefill?.recipients?.length) {
+            // Bulk-message from Contacts: pre-fill the whole list
+            setRecipients(prefill.recipients);
+            if (prefill.msgType) setMsgType(prefill.msgType);
+            clearPrefill();
+        } else if (prefill?.recipient) {
+            // Single contact "Message" button
             const handle = prefill.recipient;
             setRecipients((prev) =>
                 prev.includes(handle) ? prev : [...prev, handle],
