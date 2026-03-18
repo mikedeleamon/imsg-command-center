@@ -255,6 +255,7 @@ function ContactSearchInput({
                         setIsOpen(true);
                     }}
                     onFocus={() => setIsOpen(true)}
+                    onClick={() => setIsOpen(true)}
                     onBlur={() => {
                         // Delay so onMouseDown on a row fires before blur
                         setTimeout(() => commit(inputText), 150);
@@ -408,6 +409,102 @@ function ContactSearchInput({
         </div>
     );
 }
+
+// ── Multi-recipient input ─────────────────────────────────────────────────────
+// Wraps ContactSearchInput so each committed selection is added to a list.
+// The inner input always resets to empty (value="") after each pick.
+function RecipientsInput({ contacts, recipients, onChange, error }) {
+    const [pendingError, setPendingError] = useState('');
+
+    const addRecipient = (handle) => {
+        if (!handle) return;
+        if (recipients.includes(handle)) {
+            setPendingError('Already added.');
+            setTimeout(() => setPendingError(''), 2000);
+            return;
+        }
+        const err = validateRecipient(handle, contacts);
+        if (err) { setPendingError(err); return; }
+        setPendingError('');
+        onChange([...recipients, handle]);
+    };
+
+    const removeRecipient = (handle) => {
+        onChange(recipients.filter((r) => r !== handle));
+    };
+
+    const displayError = pendingError || error;
+
+    return (
+        <div>
+            {/* Committed recipient chips */}
+            {recipients.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                    {recipients.map((handle) => {
+                        const contact = matchContact(contacts, handle);
+                        const color   = contact?.color ?? '#0a84ff';
+                        const label   = contact?.name  ?? handle;
+                        return (
+                            <div key={handle} style={{
+                                display: 'flex', alignItems: 'center', gap: 5,
+                                padding: '4px 6px 4px 8px',
+                                background: color + '18',
+                                border: `1px solid ${color}44`,
+                                borderRadius: 20, fontSize: 12, color: 'var(--text)',
+                                maxWidth: 220,
+                            }}>
+                                <div style={{
+                                    width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                                    background: color + '33', color, overflow: 'hidden',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: 8, fontWeight: 700,
+                                }}>
+                                    {contact?.photo
+                                        ? <img src={contact.photo} alt={label}
+                                               style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        : contact ? initials(label) : '#'
+                                    }
+                                </div>
+                                <span style={{
+                                    whiteSpace: 'nowrap', overflow: 'hidden',
+                                    textOverflow: 'ellipsis', maxWidth: 150,
+                                }}>{label}</span>
+                                <button
+                                    onClick={() => removeRecipient(handle)}
+                                    style={{
+                                        background: 'none', border: 'none',
+                                        color: 'var(--text3)', cursor: 'pointer',
+                                        fontSize: 13, lineHeight: 1, padding: '0 2px', flexShrink: 0,
+                                    }}
+                                    title={`Remove ${label}`}
+                                >✕</button>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Search input — always resets to empty after each commit */}
+            <ContactSearchInput
+                contacts={contacts}
+                value=""
+                onChange={addRecipient}
+                onBlurValidate={() => {}}
+                error={displayError ? ' ' : ''}
+            />
+
+            {displayError && (
+                <div style={{
+                    fontSize: 11, color: 'var(--red)', marginTop: 6,
+                    display: 'flex', alignItems: 'center', gap: 5,
+                }}>
+                    <span style={{ fontSize: 13 }}>⚠</span> {displayError}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function MsgTypeToggle({ value, onChange }) {
     const opts = [
         {
@@ -591,7 +688,7 @@ function MsgSequence({ messages, onChange }) {
 
 // ── Preview ───────────────────────────────────────────────────────────────────
 function Preview({
-    recipient,
+    recipients,
     messages,
     date,
     time,
@@ -601,15 +698,14 @@ function Preview({
     msgType,
     contacts,
 }) {
-    const label = freqLabel(freq, cNum, cUnit);
+    const label     = freqLabel(freq, cNum, cUnit);
     const validMsgs = messages.filter(Boolean);
-    const isSMS = msgType === 'sms';
-    const matched = contacts.find(
-        (c) =>
-            c.handle === recipient ||
-            (digits(c.handle) && digits(c.handle) === digits(recipient)),
-    );
-    const displayName = matched?.name ?? recipient;
+    const isSMS     = msgType === 'sms';
+
+    const firstHandle  = recipients[0] ?? '';
+    const matched      = matchContact(contacts, firstHandle);
+    const displayName  = matched?.name ?? firstHandle;
+    const extraCount   = recipients.length - 1;
 
     return (
         <div
@@ -649,9 +745,26 @@ function Preview({
                         color: 'var(--text3)',
                         textAlign: 'center',
                         marginBottom: 12,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
                     }}
                 >
-                    {displayName || '—'}
+                    {recipients.length === 0 ? '—' : (
+                        <>
+                            <span>{displayName || '—'}</span>
+                            {extraCount > 0 && (
+                                <span style={{
+                                    fontSize: 10, fontWeight: 600,
+                                    background: 'var(--bg2)', color: 'var(--text2)',
+                                    padding: '1px 6px', borderRadius: 20,
+                                }}>
+                                    +{extraCount} more
+                                </span>
+                            )}
+                        </>
+                    )}
                 </div>
                 {validMsgs.length === 0 ? (
                     <div
@@ -693,6 +806,17 @@ function Preview({
                     ))
                 )}
             </div>
+            {recipients.length > 1 && (
+                <div style={{
+                    marginTop: 12, padding: '8px 10px',
+                    borderRadius: 'var(--radius-xs)',
+                    background: 'rgba(10,132,255,0.08)',
+                    border: '1px solid rgba(10,132,255,0.2)',
+                    fontSize: 11, color: 'var(--accent)', lineHeight: 1.6,
+                }}>
+                    📤 Creates {recipients.length} separate scheduled messages — one per recipient.
+                </div>
+            )}
             {isSMS && (
                 <div
                     style={{
@@ -761,7 +885,7 @@ export default function Compose() {
     const { date: d0, time: t0 } = todayPlus1h();
 
     const [msgType, setMsgType] = useState('imessage');
-    const [recipient, setRecipient] = useState('');
+    const [recipients, setRecipients] = useState([]);
     const [recipientError, setRecipientError] = useState('');
     const [messages, setMessages] = useState(['']);
     const [date, setDate] = useState(d0);
@@ -773,7 +897,10 @@ export default function Compose() {
 
     useEffect(() => {
         if (prefill?.recipient) {
-            setRecipient(prefill.recipient);
+            const handle = prefill.recipient;
+            setRecipients((prev) =>
+                prev.includes(handle) ? prev : [...prev, handle],
+            );
             if (prefill.msgType) setMsgType(prefill.msgType);
             clearPrefill();
         }
@@ -785,10 +912,8 @@ export default function Compose() {
     }, []);
 
     const handleSchedule = async () => {
-        // Validate recipient — shows inline error on the field
-        const rErr = validateRecipient(recipient, contacts);
-        if (rErr) {
-            setRecipientError(rErr);
+        if (recipients.length === 0) {
+            setRecipientError('Add at least one recipient.');
             return;
         }
         setRecipientError('');
@@ -797,21 +922,25 @@ export default function Compose() {
             return showError('Write at least one message.');
         if (!date || !time) return showError('Set a date and time.');
 
-        const item = {
-            recipient: recipient.trim(),
-            msgType,
-            messages: messages.filter(Boolean),
-            date,
-            time,
-            freq,
-            cNum,
-            cUnit,
-            flabel: freqLabel(freq, cNum, cUnit),
-            paused: false,
-            color: colorForName(recipient.trim()),
-        };
-        await addScheduled(item);
-        setRecipient('');
+        await Promise.all(
+            recipients.map((handle) =>
+                addScheduled({
+                    recipient: handle,
+                    msgType,
+                    messages:  messages.filter(Boolean),
+                    date,
+                    time,
+                    freq,
+                    cNum,
+                    cUnit,
+                    flabel: freqLabel(freq, cNum, cUnit),
+                    paused: false,
+                    color:  colorForName(handle),
+                }),
+            ),
+        );
+
+        setRecipients([]);
         setMessages(['']);
         setMsgType('imessage');
         setRecipientError('');
@@ -869,57 +998,37 @@ export default function Compose() {
                         />
                     </div>
 
-                    {/* Recipient */}
+                    {/* Recipients */}
                     <div className='card'>
                         <div className='card-header'>
                             <div>
-                                <div className='card-title'>Recipient</div>
+                                <div className='card-title'>Recipients</div>
                                 <div className='card-subtitle'>
                                     {msgType === 'sms'
-                                        ? 'Phone number required for SMS'
-                                        : 'Phone number or Apple ID email'}
+                                        ? 'Phone numbers required for SMS'
+                                        : 'Phone numbers or Apple ID emails'}
                                 </div>
                             </div>
+                            {recipients.length > 0 && (
+                                <span style={{
+                                    marginLeft: 'auto',
+                                    fontSize: 11, fontWeight: 600,
+                                    padding: '2px 10px', borderRadius: 20,
+                                    background: 'var(--bg2)', color: 'var(--text2)',
+                                    border: '1px solid var(--border)',
+                                }}>
+                                    {recipients.length} recipient{recipients.length !== 1 ? 's' : ''}
+                                </span>
+                            )}
                         </div>
                         <div className='field'>
                             <label>To</label>
-                            <ContactSearchInput
+                            <RecipientsInput
                                 contacts={contacts}
-                                value={recipient}
-                                onChange={(v) => {
-                                    setRecipient(v);
-                                    setRecipientError('');
-                                }}
-                                onBlurValidate={(committedValue) => {
-                                    // Use the value just committed by the input component —
-                                    // the parent's `recipient` state may not have updated yet.
-                                    const toCheck =
-                                        committedValue !== undefined
-                                            ? committedValue
-                                            : recipient;
-                                    const err = validateRecipient(
-                                        toCheck,
-                                        contacts,
-                                    );
-                                    if (err) setRecipientError(err);
-                                }}
+                                recipients={recipients}
+                                onChange={setRecipients}
                                 error={recipientError}
                             />
-                            {recipientError && (
-                                <div
-                                    style={{
-                                        fontSize: 11,
-                                        color: 'var(--red)',
-                                        marginTop: 6,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 5,
-                                    }}
-                                >
-                                    <span style={{ fontSize: 13 }}>⚠</span>{' '}
-                                    {recipientError}
-                                </div>
-                            )}
                         </div>
                     </div>
 
@@ -1024,8 +1133,10 @@ export default function Compose() {
                             }}
                             onClick={handleSchedule}
                         >
-                            Schedule{' '}
-                            {msgType === 'sms' ? 'Text Message' : 'iMessage'}
+                            {recipients.length > 1
+                                ? `Schedule to ${recipients.length} recipients`
+                                : `Schedule ${msgType === 'sms' ? 'Text Message' : 'iMessage'}`
+                            }
                         </button>
                         {error && (
                             <div
@@ -1043,7 +1154,7 @@ export default function Compose() {
 
                 <Preview
                     msgType={msgType}
-                    recipient={recipient}
+                    recipients={recipients}
                     messages={messages}
                     date={date}
                     time={time}
