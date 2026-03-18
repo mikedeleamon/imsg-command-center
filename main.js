@@ -97,6 +97,18 @@ function buildScheduleRule(item) {
     rule.hour = hour; rule.minute = minute
     return rule
   }
+  if (item.freq === 'weekdays') {
+    const rule = new schedule.RecurrenceRule()
+    rule.dayOfWeek = [1, 2, 3, 4, 5]
+    rule.hour = hour; rule.minute = minute
+    return rule
+  }
+  if (item.freq === 'weekends') {
+    const rule = new schedule.RecurrenceRule()
+    rule.dayOfWeek = [0, 6]
+    rule.hour = hour; rule.minute = minute
+    return rule
+  }
   if (item.freq === 'weekly') {
     const rule = new schedule.RecurrenceRule()
     rule.dayOfWeek = new Date(`${item.date}T12:00:00`).getDay()

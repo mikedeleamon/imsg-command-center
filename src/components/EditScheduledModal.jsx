@@ -152,6 +152,8 @@ export default function EditScheduledModal({ item, onClose, onSave }) {
           <option value="once">Send once</option>
           <option value="hourly">Every hour</option>
           <option value="daily">Every day</option>
+          <option value="weekdays">Every weekday (Mon–Fri)</option>
+          <option value="weekends">Every weekend (Sat–Sun)</option>
           <option value="weekly">Every week</option>
           <option value="monthly">Every month</option>
           <option value="custom">Custom interval…</option>

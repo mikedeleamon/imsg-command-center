@@ -15,19 +15,23 @@ export const initials = (name) =>
 
 export const freqLabel = (freq, cNum, cUnit) => {
   const map = {
-    once:    'Once',
-    hourly:  'Every hour',
-    daily:   'Daily',
-    weekly:  'Weekly',
-    monthly: 'Monthly',
+    once:     'Once',
+    hourly:   'Every hour',
+    daily:    'Daily',
+    weekdays: 'Weekdays (Mon–Fri)',
+    weekends: 'Weekends (Sat–Sun)',
+    weekly:   'Weekly',
+    monthly:  'Monthly',
   }
   return map[freq] ?? `Every ${cNum} ${cUnit}`
 }
 
 export const cronExpr = ({ freq, time, date, cNum, cUnit }) => {
   const [h, m] = (time ?? '09:00').split(':')
-  if (freq === 'hourly')  return `${m} * * * *`
-  if (freq === 'daily')   return `${m} ${h} * * *`
+  if (freq === 'hourly')   return `${m} * * * *`
+  if (freq === 'daily')    return `${m} ${h} * * *`
+  if (freq === 'weekdays') return `${m} ${h} * * 1-5`
+  if (freq === 'weekends') return `${m} ${h} * * 0,6`
   if (freq === 'weekly') {
     const d = new Date((date ?? '') + 'T12:00:00').getDay()
     return `${m} ${h} * * ${d}`
