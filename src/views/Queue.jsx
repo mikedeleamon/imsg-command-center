@@ -15,7 +15,9 @@ export default function Queue() {
   const [filter, setFilter] = useState('all')
 
   // Only active (non-completed) items live here
-  const active = scheduled.filter(s => !s.completed)
+  const active = scheduled
+    .filter(s => !s.completed)
+    .sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`))
 
   const visible = active.filter(s => {
     if (filter === 'all')    return true

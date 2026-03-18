@@ -9,7 +9,10 @@ export default function Dashboard() {
   const recipients = new Set(scheduled.map(s => s.recipient)).size
   const completed  = scheduled.filter(s => s.completed).length
   const failed     = failedJobs.length
-  const upcoming   = scheduled.filter(s => !s.completed).slice(0, 5)
+  const upcoming = scheduled
+    .filter(s => !s.completed)
+    .sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`))
+    .slice(0, 5)
 
   return (
     <div>
